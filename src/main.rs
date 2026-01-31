@@ -1,31 +1,51 @@
-use std::{env, fs};
+use std::{env, fs, process, error::Error};
+use minigrep::{search, search_case_insensitive};
 
 fn main() {
     let args: Vec<String> = env::args().collect();
-    let config = Config::new(args);
 
+    let config = Config::build(args).unwrap_or_else(|err|{
+        eprintln!("Problem parsing arguments: {err}");
+        process::exit(1);
+    });
 
-
-    println!("Searching for {}", config.query);
-    println!("In file {}", config.file_path);
-
-    let contents = fs::read_to_string(config.file_path)
-        .expect("Should have been able to read the file");
-
-    println!("With text:\n{}", contents);
+    // Since run() only returns () on the succesful case
+    // what only matters here is to capture the error
+    // so if let syntax is preferred
+    if let Err(e) = run(config) {
+        eprintln!("Application error: {}", e);
+        process::exit(1);
+    }
 }
 
-struct Config {
-    query: String,
-    file_path: String,
+pub struct Config {
+    pub query: String,
+    pub file_path: String,
+    pub ignore_case: bool,
 }
 
 impl Config {
-    fn new(args: Vec<String>) -> Config {
+    fn build(args: Vec<String>) -> Result<Config, &'static str> {
         let mut args = args.into_iter();
         args.next();
-        let query = args.next().expect("Missing query");
-        let file_path = args.next().expect("Missing file path");
-        Config { query, file_path }
+        let query = args.next().ok_or("Missing query")?;
+        let file_path = args.next().ok_or("Missing file path")?;
+        let ignore_case = env::var("IGNORE_CASE").is_ok();
+        Ok(Config { query, file_path, ignore_case })
     }
+}
+
+fn run(config: Config) -> Result<(), Box<dyn Error>> {
+    let contents = fs::read_to_string(config.file_path)?;
+    let results = if config.ignore_case {
+        search_case_insensitive(&config.query, &contents)
+    } else {
+        search(&config.query, &contents)
+    };
+
+    for line in results {
+        println!("{}", line);
+    }
+
+    Ok(())
 }
