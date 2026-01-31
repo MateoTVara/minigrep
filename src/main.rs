@@ -1,10 +1,8 @@
 use std::{env, fs, process, error::Error};
-use minigrep::{search, search_case_insensitive};
+use minigrep::{search};
 
 fn main() {
-    let args: Vec<String> = env::args().collect();
-
-    let config = Config::build(args).unwrap_or_else(|err|{
+    let config = Config::build(env::args()).unwrap_or_else(|err|{
         eprintln!("Problem parsing arguments: {err}");
         process::exit(1);
     });
@@ -25,8 +23,10 @@ pub struct Config {
 }
 
 impl Config {
-    fn build(args: Vec<String>) -> Result<Config, &'static str> {
-        let mut args = args.into_iter();
+    fn build(
+        mut args: impl Iterator<Item = String>,
+    ) -> Result<Config, &'static str>
+    {
         args.next();
         let query = args.next().ok_or("Missing query")?;
         let file_path = args.next().ok_or("Missing file path")?;
@@ -37,11 +37,9 @@ impl Config {
 
 fn run(config: Config) -> Result<(), Box<dyn Error>> {
     let contents = fs::read_to_string(config.file_path)?;
-    let results = if config.ignore_case {
-        search_case_insensitive(&config.query, &contents)
-    } else {
-        search(&config.query, &contents)
-    };
+    let results = search(
+        &config.query, &contents, config.ignore_case
+    );
 
     for line in results {
         println!("{}", line);
