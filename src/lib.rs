@@ -1,61 +1,23 @@
-pub fn search<'a> (
-	query: &str,
-	contents: &'a str,
-	ignore_case: bool
-) -> impl Iterator<Item = &'a str> 
-{
-	let query = if ignore_case {
-		query.to_ascii_lowercase()
-	} else {
-		query.to_string()
-	};
+pub mod config;
+pub mod traverse;
+pub mod search;
 
-	contents
-		.lines()
-		.filter(move |l| {
-			if ignore_case {
-				l.to_ascii_lowercase().contains(&query)
-			} else {
-				l.contains(&query)
-			}
-		})
-}
+use std::{
+	error, path
+};
 
-#[cfg(test)]
-mod tests {
-	use super::*;
+use crate::{search::search, traverse::traverse, config::Config};
 
-	#[test]
-    fn case_sensitive() {
-        let query = "duct";
-        let contents = "\
-Rust:
-safe, fast, productive.
-Pick three.
-Duct tape.";
+pub fn run(config: Config) -> Result<(), Box<dyn error::Error>> {
+    let path = path::Path::new(&config.file_path);
+    let contents = traverse(&path)?;
+    let results = search(
+        &config.query, contents, config.ignore_case
+    );
 
-		let results: Vec<_> = search(query, contents, false).collect();
-
-        assert_eq!(
-			vec!["safe, fast, productive."],
-			results
-		);
+    for line in results {
+        println!("{}", line);
     }
 
-    #[test]
-    fn case_insensitive() {
-        let query = "rUsT";
-        let contents = "\
-Rust:
-safe, fast, productive.
-Pick three.
-Trust me.";
-
-		let results: Vec<_> = search(query, contents, true).collect();
-		
-        assert_eq!(
-            vec!["Rust:", "Trust me."],
-			results
-        );
-    }
+    Ok(())
 }
