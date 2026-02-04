@@ -10,7 +10,7 @@ use crate::{search::search, traverse::traverse, config::Config};
 
 pub fn run(config: Config) -> Result<(), Box<dyn error::Error>> {
     let path = path::Path::new(&config.file_path);
-    let contents = traverse(&path)?;
+    let contents = traverse(path)?;
     let results = search(
         &config.query, contents, config.ignore_case
     );
